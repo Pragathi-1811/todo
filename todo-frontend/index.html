@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Todo App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+    h1 { text-align: center; }
+    .row { display: flex; gap: 8px; margin-bottom: 16px; }
+    input[type="text"] { flex: 1; padding: 8px; font-size: 16px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid #ddd; }
+    li span { flex: 1; }
+    li.done span { text-decoration: line-through; color: #888; }
+    #error { color: red; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>My Todos</h1>
+  <p id="error"></p>
+
+  <div class="row">
+    <input type="text" id="title" placeholder="What needs to be done?">
+    <button onclick="addTodo()">Add</button>
+  </div>
+
+  <ul id="list"></ul>
+
+  <script>
+    const API_URL = "http://localhost:8080/api/todos";
+
+    async function loadTodos() {
+      try {
+        const res = await fetch(API_URL);
+        const todos = await res.json();
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+
+        todos.forEach(todo => {
+          const li = document.createElement("li");
+          if (todo.completed) li.className = "done";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = todo.completed;
+          checkbox.onchange = () => toggleTodo(todo);
+
+          const span = document.createElement("span");
+          span.textContent = todo.title;
+
+          const del = document.createElement("button");
+          del.textContent = "Delete";
+          del.onclick = () => deleteTodo(todo.id);
+
+          li.append(checkbox, span, del);
+          list.appendChild(li);
+        });
+        document.getElementById("error").textContent = "";
+      } catch (e) {
+        document.getElementById("error").textContent = "Cannot reach the backend. Is it running?";
+      }
+    }
+
+    async function addTodo() {
+      const input = document.getElementById("title");
+      const title = input.value.trim();
+      if (!title) return;
+
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, completed: false })
+      });
+      input.value = "";
+      loadTodos();
+    }
+
+    async function toggleTodo(todo) {
+      await fetch(API_URL + "/" + todo.id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: todo.title, completed: !todo.completed })
+      });
+      loadTodos();
+    }
+
+    async function deleteTodo(id) {
+      await fetch(API_URL + "/" + id, { method: "DELETE" });
+      loadTodos();
+    }
+
+    document.getElementById("title").addEventListener("keydown", e => {
+      if (e.key === "Enter") addTodo();
+    });
+
+    loadTodos();
+  </script>
+</body>
+</html>
